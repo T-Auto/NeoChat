@@ -178,3 +178,4 @@ cython_debug/
 Dialogue_history/
 chroma_db_store/
 run_logs/
+memory-bank/

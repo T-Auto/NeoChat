@@ -13,12 +13,14 @@ API_TIMEOUT_SECONDS = 180                 # API请求的超时时间 (秒) (建�
 
 # 系统提示词(System Prompt)
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
+# print(SYSTEM_PROMPT)
+
 # 会话与历史记录
 HISTORY_BASE_PATH = "Dialogue_history"    # 聊天记录保存路径
 CHROMA_DB_PATH = "./chroma_db_store"      # RAG缓存路径，ChromaDB持久化存储路径。可安全删除，删除后会根据Json聊天记录重新生成，但更耗时。
 
 # 调试与日志
-DEBUG_MODE = True                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
+DEBUG_MODE = False                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
 
 # RAG (Retrieval Augmented Generation) 设置
 USE_RAG = True                            # 是否启用RAG功能
