@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# 其他
+Dialogue_history/
+chroma_db_store/
+run_logs/
