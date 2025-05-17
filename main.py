@@ -538,18 +538,21 @@ def main():
 
         api_payload_messages = []
 
-        # 添加当前时间作为系统提示
+        # --- 步骤 A: 准备各种消息组件 ---
+
+        # A1. 获取当前时间并创建时间提示 (每次请求都获取)
         current_time_str = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
         time_system_message = {"role": "system", "content": f"assistant_hint: 当前提问时间是 {current_time_str}。"}
-        api_payload_messages.append(time_system_message)
-        log_debug(f"已添加当前时间提示: \"{time_system_message['content']}\"")
+        # log_debug 移动到添加时记录
 
-        # 添加配置中的系统提示
+        # A2. 准备配置中的系统提示 (如果存在)
+        config_system_prompt_message = None
         if config.SYSTEM_PROMPT and config.SYSTEM_PROMPT.strip():
-            api_payload_messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
-            log_debug(f"已添加系统提示: \"{config.SYSTEM_PROMPT[:100].strip().replace(chr(10), ' ')}...\"")
+            config_system_prompt_message = {"role": "system", "content": config.SYSTEM_PROMPT}
+            # log_debug 移动到添加时记录
 
-        # 处理 RAG 检索 (如果启用且初始化成功)
+        # A3. 处理 RAG 检索，并将结果收集到 rag_messages_to_add 列表
+        rag_messages_to_add = []
         if config.USE_RAG and rag_initialized_successfully and chroma_collection and chroma_collection.count() > 0:
             start_loading_animation(
                 message=f"{TermColors.MAGENTA}{config.AI_NAME}正在翻看记事本{TermColors.RESET}",
@@ -576,11 +579,11 @@ def main():
                 rag_prefix_content = config.RAG_PROMPT_PREFIX
                 if not rag_prefix_content or not rag_prefix_content.strip():
                     rag_prefix_content = "以下是根据你的问题从历史对话中检索到的相关片段，其中包含了对话发生的大致时间："
-                api_payload_messages.append({"role": "system", "content": rag_prefix_content})
-                api_payload_messages.extend(rag_context_messages)
+                rag_messages_to_add.append({"role": "system", "content": rag_prefix_content})
+                rag_messages_to_add.extend(rag_context_messages)
                 if config.RAG_PROMPT_SUFFIX and config.RAG_PROMPT_SUFFIX.strip():
-                    api_payload_messages.append({"role": "system", "content": config.RAG_PROMPT_SUFFIX})
-                log_debug(f"已添加 {len(rag_context_messages)} 条RAG消息及提示。")
+                    rag_messages_to_add.append({"role": "system", "content": config.RAG_PROMPT_SUFFIX})
+                # log_debug 移动到添加时记录
         else:
             reasons = [r for r, c in [("USE_RAG为False", not config.USE_RAG),
                                       ("RAG未成功初始化", not rag_initialized_successfully),
@@ -589,13 +592,36 @@ def main():
                                        chroma_collection is not None and chroma_collection.count() == 0)] if c]
             if reasons: log_debug(f"跳过RAG检索，原因: {', '.join(reasons)}。")
 
+        # --- 步骤 B: 按新顺序组装 api_payload_messages ---
+
+        # B1. 添加 RAG 消息 (如果存在)
+        if rag_messages_to_add:
+            api_payload_messages.extend(rag_messages_to_add)
+            log_debug(f"已添加 {len(rag_messages_to_add)} 条RAG消息(包括前后缀)。")
+
+        # B2. 添加配置中的系统提示 (在RAG之后)
+        if config_system_prompt_message:
+            api_payload_messages.append(config_system_prompt_message)
+            log_debug(f"已添加系统提示: \"{config_system_prompt_message['content'][:100].strip().replace(chr(10), ' ')}...\"")
+
+        # B3. 添加当前时间提示 (在配置系统提示之后)
+        api_payload_messages.append(time_system_message)
+        log_debug(f"已添加当前时间提示: \"{time_system_message['content']}\"")
+
+        # B4. 添加当前会话的滑动窗口历史
         temp_sliding_window = current_session_messages[-(
             config.MAX_CONTEXT_MESSAGES_SLIDING_WINDOW - 1 if config.MAX_CONTEXT_MESSAGES_SLIDING_WINDOW > 0 else 0):]
-        api_payload_messages.extend(temp_sliding_window)
+        if temp_sliding_window: # 仅当有历史时才添加和记录
+            api_payload_messages.extend(temp_sliding_window)
+            log_debug(f"已从当前会话添加 {len(temp_sliding_window)} 条历史消息。")
+        else:
+            log_debug("当前会话无历史消息可添加。")
 
+
+        # B5. 添加当前用户输入消息
         user_message_for_payload = {"role": "user", "content": user_input}
         api_payload_messages.append(user_message_for_payload)
-        log_debug(f"已从当前会话添加 {len(temp_sliding_window)} 条历史消息，并添加当前用户消息。")
+        log_debug(f"已添加当前用户消息。最终Payload消息总数: {len(api_payload_messages)}")
 
         current_session_messages.append(user_message_for_payload)
 
