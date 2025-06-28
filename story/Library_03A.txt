@@ -1,0 +1,33 @@
+# 剧情单元 3A: 安静的自习室 (扩充版)
+UnitID: Library_03A
+UnitName: 安静的自习室
+SceneCG: library_evening.jpg
+BGM: gentle_piano.mp3
+Time: 18:15
+
+Events:
+  - Type: Narration
+    Mode: Preset
+    Content: "自习室里非常安静，只有笔尖划过纸张的沙沙声和偶尔翻书的声音。你们找了个靠窗的位置坐下。"
+
+  - Type: Dialogue
+    Character: 浅川夏帆
+    Mode: Preset
+    Content: "太好了，这里还有位置。能像这样一起学习，感觉真好。"
+    
+  - Type: WaitForPlayerInput
+
+  - Type: Dialogue
+    Character: 浅川夏帆
+    Mode: Prompt
+    Content: "这是你的内心活动：你从书包里拿出课本，看到[玩家名]也准备好了。你觉得在开始紧张的复习前，可以先聊几句放松一下，于是你笑着对他小声说..."
+
+  - Type: Narration
+    Mode: Preset
+    Content: "在正式开始学习前，你们决定先聊一会儿，放松一下心情。"
+
+EndCondition:
+  Type: FreeTime
+  InstructionToPlayer: "你已进入自由聊天时间。点击右上方按钮或输入“时间不早了”可结束对话。"
+  ExitPromptInInputBox: "时间不早了，我们开始学习吧！"
+  NextUnitID: Park_04

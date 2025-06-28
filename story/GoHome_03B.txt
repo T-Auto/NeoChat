@@ -1,0 +1,31 @@
+# 剧情单元 3B: 各自回家的路 (扩充版)
+UnitID: GoHome_03B
+UnitName: 各自回家的路
+SceneCG: street_night.jpg
+BGM: slightly_sad_theme.mp3
+Time: 18:00
+
+Events:
+  - Type: Narration
+    Mode: Preset
+    Content: "最终，你们还是决定各自回家复习。在分岔路口，昏黄的路灯拉长了你们的影子。"
+
+  - Type: Dialogue
+    Character: 浅川夏帆
+    Mode: Preset
+    Content: "那...就到这里了。你回家也早点开始复习哦。"
+
+  - Type: WaitForPlayerInput
+
+  - Type: Dialogue
+    Character: 浅川夏帆
+    Mode: Prompt
+    Content: "这是你的内心活动：听了[玩家名]的话，你点点头，但心里还是觉得有点空落落的。你对他挥了挥手，再次叮嘱他路上小心。"
+
+  - Type: Narration
+    Mode: Prompt
+    Content: "你是一个负责渲染气氛的旁白。请描述[玩家名]看着[浅川夏帆]转身离去的背影，在<时间>的夜色下，心中涌起的一丝莫名的失落与怅然。"
+
+EndCondition:
+  Type: Linear
+  NextUnitID: Park_04
