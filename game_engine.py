@@ -263,7 +263,6 @@ class GameEngine:
             content = event_content
 
         if event_type == 'Narration':
-            # 检查是否为 Prompt 模式
             if params.get('Mode') == 'Prompt':
                 log_debug("生成 'Narration' prompt...")
                 # 旁白/DM的通用系统提示
@@ -288,18 +287,21 @@ class GameEngine:
                         # 玩家发言也作为用户输入
                         messages.insert(-1, {"role": "user", "content": content})
                 
-                # 使用 is_internal_thought=False 以便流式输出到控制台
-                generated_content = chat_with_deepseek(messages, character_name="旁白")
+                # --- 核心修改点 ---
+                # chat_with_deepseek 内部已经处理了流式打印
+                # 它返回的 generated_content 仅用于保存历史记录
+                generated_content = chat_with_deepseek(messages, character_name="旁白", color_code=TermColors.GREY)
+                
                 if generated_content:
-                    content = generated_content  # 用生成的内容替换原始内容
+                    # 注意：这里不再执行 print()
+                    self._add_to_dialogue_history('Narration', content=generated_content)
                 else:
                     log_error("旁白生成失败。")
                     self.game_over = True
                     return
-            
-            # 不论是 Preset 还是 Prompt 生成的，都执行以下打印和记录逻辑
-            print(f"{TermColors.GREY}旁白: {content}{TermColors.RESET}")
-            self._add_to_dialogue_history('Narration', content=content)
+            else: # 这是处理 Mode: Preset 的情况
+                print(f"{TermColors.GREY}旁白: {content}{TermColors.RESET}")
+                self._add_to_dialogue_history('Narration', content=content)
         
         elif event_type == 'Dialogue':
             char_id = self._format_string(params['Character'])
@@ -337,9 +339,13 @@ class GameEngine:
                 # 3. 添加当前Prompt
                 messages.append({"role": "system", "content": f"这是你的内心独白或行为指引，请根据它生成一句对话。不要把内心独白本身说出来。\n内心独白: {content}"})
                 
-                response = chat_with_deepseek(messages, char_name)
+                # --- 核心修改点 ---
+                # chat_with_deepseek 内部已经处理了流式打印
+                # 它返回的 response 仅用于保存历史记录
+                response = chat_with_deepseek(messages, char_name, color_code=TermColors.CYAN)
+
                 if response:
-                    print(f"{TermColors.CYAN}{char_name}:{TermColors.RESET} {response}")
+                    # 注意：移除了这里的 print() 语句
                     self._add_to_dialogue_history('Dialogue', character_id=char_id, content=response)
                 else:
                     log_error("LLM未能生成响应，游戏可能无法继续。")
@@ -389,7 +395,7 @@ class GameEngine:
                         # 玩家发言也作为用户输入
                         messages.insert(-1, {"role": "user", "content": content})
                 
-                generated_content = chat_with_deepseek(messages, character_name=dm_char.get('name', 'DM') if dm_char else 'DM')
+                generated_content = chat_with_deepseek(messages, character_name=dm_char.get('name', 'DM') if dm_char else 'DM', color_code=TermColors.MAGENTA)
                 if generated_content:
                     content = generated_content
                 else:
@@ -546,7 +552,7 @@ class GameEngine:
                      if content:
                          messages.append({"role": "user", "content": content})
             
-            response = chat_with_deepseek(messages, ai_char_name)
+            response = chat_with_deepseek(messages, ai_char_name, color_code=TermColors.CYAN)
             if response:
                 self._add_to_dialogue_history('Dialogue', character_id=ai_char_id, content=response)
             
@@ -609,7 +615,7 @@ class GameEngine:
 
         # 调用LLM获取决策文本 (这里不直接打印，是AI的内心思考)
         log_info(f"正在为角色 {decider_char['name']} 获取决策...")
-        ai_decision_text = chat_with_deepseek(decision_messages, character_name=f"{decider_char['name']}(内心)", is_internal_thought=True)
+        ai_decision_text = chat_with_deepseek(decision_messages, character_name=f"{decider_char['name']}(内心)", is_internal_thought=True, color_code=TermColors.CYAN)
 
         if not ai_decision_text:
             log_error("AI 未能做出决策，剧情无法继续。")
@@ -626,7 +632,7 @@ class GameEngine:
         ]
         
         log_info("系统正在判断 AI 的选择...")
-        judged_result = chat_with_deepseek(judge_messages, character_name="系统判断", is_internal_thought=True)
+        judged_result = chat_with_deepseek(judge_messages, character_name="系统判断", is_internal_thought=True, color_code=TermColors.CYAN)
         
         if not judged_result:
             log_error("系统未能判断 AI 的决策，剧情无法继续。")

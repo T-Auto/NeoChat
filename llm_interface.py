@@ -15,7 +15,7 @@ from logger import (
     TermColors
 )
 
-def chat_with_deepseek(messages_payload, character_name="AI", is_internal_thought=False):
+def chat_with_deepseek(messages_payload, character_name="AI", is_internal_thought=False, color_code=TermColors.CYAN):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config.API_KEY}"}
     payload = {
         "model": config.MODEL_NAME, "messages": messages_payload, "stream": True,
@@ -64,9 +64,9 @@ def chat_with_deepseek(messages_payload, character_name="AI", is_internal_though
                                 if not first_chunk_received:
                                     stop_loading_animation()
                                     animation_stopped_internally = True
-                                    print(f"{TermColors.CYAN}{character_name}:{TermColors.RESET} ", end="", flush=True)
+                                    print(f"{color_code}{character_name}:{TermColors.RESET} ", end="", flush=True)
                                     first_chunk_received = True
-                                sys.stdout.write(f"{TermColors.CYAN}{content_piece}{TermColors.RESET}")
+                                sys.stdout.write(f"{color_code}{content_piece}{TermColors.RESET}")
                                 sys.stdout.flush()
                             assistant_full_response += content_piece
                     except (json.JSONDecodeError, IndexError):
