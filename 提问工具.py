@@ -15,7 +15,7 @@ OUTPUT_MD_FILENAME = "project_summary.md"
 # __pycache__ 是 Python 编译的字节码缓存
 # venv, env, .venv 是常见的虚拟环境目录
 # .vscode, .idea 是 IDE 配置文件目录
-EXCLUDED_ITEMS = {'.git', '__pycache__', 'venv', 'env', '.venv', '.vscode', '.idea', '旧代码','.DS_Store'}
+EXCLUDED_ITEMS = {'.git', '__pycache__', 'venv', 'env', '.venv', '.vscode', '.idea', '旧代码','.DS_Store','others'}
 
 # 对于这些扩展名的文件，如果数量过多，则进行省略处理
 ELLIPSIS_EXTENSIONS = {

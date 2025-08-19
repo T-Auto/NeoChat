@@ -1,6 +1,0 @@
-requests
-scikit-learn
-chromadb
-sentence_transformers
-wcwidth
-dotenv
