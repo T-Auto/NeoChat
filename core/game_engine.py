@@ -506,7 +506,9 @@ class GameEngine:
             self.progress['runtime_state'] = 'InFreeTime'
             self.progress['free_time_context'] = {
                 'end_condition': end_data,
-                'turns_taken': 0
+                'turns_taken': 0,
+                # 新增：可选的指定互动角色列表（按顺序轮询）
+                'interact_with_list': end_data.get('InteractWith')
             }
             log_info_color(self._format_string(end_data['InstructionToPlayer']), TermColors.BLUE)
         
@@ -583,18 +585,39 @@ class GameEngine:
             
             self._add_to_dialogue_history('Player', content=text)
             
-            # AI 回复 - 使用智能轮询机制
-            # 优先选择DM角色
-            dm_char_id = self.global_config.get('dm_role_id')
-            if dm_char_id and dm_char_id in self.character_files:
-                ai_char_id = dm_char_id
+            # AI 回复 - 使用智能轮询机制（支持 InteractWith 指定列表）
+            characters_for_freetime = context.get('interact_with_list')
+
+            ai_char_id = None
+            if characters_for_freetime:
+                # 过滤无效的角色ID
+                valid_roles = [rid for rid in characters_for_freetime if rid in self.character_files]
+                if len(valid_roles) != len(characters_for_freetime):
+                    log_warning("InteractWith 中包含无效的角色ID，已自动忽略无效项。")
+                characters_for_freetime = valid_roles
+
+                if characters_for_freetime:
+                    last_responder_index = self.progress.get('last_responder_index', -1)
+                    next_responder_index = (last_responder_index + 1) % len(characters_for_freetime)
+                    ai_char_id = characters_for_freetime[next_responder_index]
+                    self.progress['last_responder_index'] = next_responder_index
+                else:
+                    log_warning("自由时间中没有可用的AI角色进行对话（InteractWith 过滤后为空）。")
+                    return
             else:
-                # 如果没有DM，则进行轮询
-                all_ai_roles = self.global_config['character_roles']
+                # 未指定列表：保持默认行为（优先DM，否则按全局角色轮询）
+                dm_char_id = self.global_config.get('dm_role_id') 
+                if dm_char_id and dm_char_id in self.character_files:
+                    ai_char_id = dm_char_id
+                else:
+                    all_ai_roles = [rid for rid in self.global_config['character_roles'] if rid in self.character_files]
+                    if not all_ai_roles:
+                        log_warning("全局配置中没有可用的AI角色。")
+                        return
                 last_responder_index = self.progress.get('last_responder_index', -1)
                 next_responder_index = (last_responder_index + 1) % len(all_ai_roles)
                 ai_char_id = all_ai_roles[next_responder_index]
-                self.progress['last_responder_index'] = next_responder_index  # 记录本次响应者索引
+                self.progress['last_responder_index'] = next_responder_index
             
             ai_char_name = self.character_files[ai_char_id]['name']
 
