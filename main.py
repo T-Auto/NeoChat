@@ -10,11 +10,9 @@ from core.engine import GameEngine
 from core.save_manager import SaveManager
 from core.ui import ConsoleUI
 from core.setup_wizard import SetupWizard
+from core.boot_animation import run_boot_animation
 
 def select_from_list(items: list, prompt: str, ui: ConsoleUI) -> any:
-    """
-    显示一个列表供用户选择，并返回用户选择的项。
-    """
     if not items:
         ui.display_system_message("没有可选项。", TermColors.RED)
         return None
@@ -37,9 +35,6 @@ def select_from_list(items: list, prompt: str, ui: ConsoleUI) -> any:
             return None
 
 def start_new_game(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine | None:
-    """
-    引导用户开始一个新游戏，包括选择剧本、角色和玩家人设。
-    """
     log_info("开始新游戏流程...")
     
     # 1. 选择剧本
@@ -114,10 +109,8 @@ def start_new_game(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine | Non
         return GameEngine(session)
     return None
 
+
 def load_game_from_save(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine | None:
-    """
-    引导用户从现有存档加载游戏。
-    """
     log_info("加载游戏存档...")
     saves_path = config.SAVES_BASE_PATH
     available_saves = [d for d in os.listdir(saves_path) if os.path.isdir(os.path.join(saves_path, d))]
@@ -135,6 +128,9 @@ def load_game_from_save(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine 
     return None
 
 def main():
+    # 0. 运行启动动画
+    run_boot_animation()
+    
     # 1. 初始化日志系统
     initialize_logger(config_debug_mode=config.DEBUG_MODE)
     ui = ConsoleUI()
@@ -169,7 +165,7 @@ def main():
     while True:
         ui.clear_screen()
         print("\n" + "="*30)
-        print(" NeoChat 0.5 (重构版)")
+        print(" NeoChat-alpha")
         print("="*30)
         print(f"{TermColors.CYAN}  /start - 开始新游戏")
         print(f"  /load  - 加载存档")
