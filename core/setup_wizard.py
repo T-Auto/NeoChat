@@ -14,7 +14,7 @@ class SetupWizard:
     """
     USER_CONFIG_PATH = os.path.join('data', 'user_config.py')
 
-    # 小诺的核心系统提示词，在整个初始化流程中保持不变
+    # 初始化使用的小诺的核心系统提示词
     XIAO_NUO_CORE_SYSTEM_PROMPT = (
         "你的名字是小诺。你是一个AI助手，负责引导用户完成初次使用的设置。"
         "你的性格是亲切、自然、稍微有点迷糊但对任务非常认真的。"
@@ -28,21 +28,18 @@ class SetupWizard:
 
     def __init__(self, ui: ConsoleUI):
         self.ui = ui
-        # 维护一个完整的对话历史，包括系统提示词
         self.messages: List[Dict[str, str]] = [
             {"role": "system", "content": self.XIAO_NUO_CORE_SYSTEM_PROMPT}
         ]
-        self.conversation_history = [] # 仅用于JSON提取，不直接用于LLM调用
+        self.conversation_history = []
 
     @staticmethod
     def is_first_launch() -> bool:
         """检查是否是首次启动。"""
         try:
-            # 尝试导入 user_config，如果失败或 is_first_launch 为 True，则认为是首次启动
             from data import user_config
             return getattr(user_config, 'is_first_launch', True)
         except (ImportError, AttributeError):
-            # 如果文件不存在或格式不正确，也认为是首次启动
             return True
 
     def run(self):
@@ -50,20 +47,17 @@ class SetupWizard:
         log_info("启动新用户初始化流程...")
         
         # 1. 小诺开场白
-        # 这里的 prompt 是一个临时的用户指令，指导小诺说出开场白
         greeting_instruction = "这是你与用户聊天的第一句话。请发送“你好呀~这里是小诺。初次见面，介绍一下自己吧。所以......你叫什么名字？”与用户开启第一次交流"
         xiao_nuo_greeting = self._get_xiao_nuo_response(user_instruction=greeting_instruction)
         if not xiao_nuo_greeting:
             log_error("初始化失败：无法从小诺获取问候语。")
             return
 
-        # 2. 获取用户输入 (名字)
         user_name_input = self.ui.prompt_for_input()
         self.messages.append({"role": "user", "content": user_name_input})
-        self.conversation_history.append({"role": "user", "content": user_name_input}) # 记录到用于JSON提取的历史
+        self.conversation_history.append({"role": "user", "content": user_name_input})
 
-        # 3. 小诺对用户名的反应
-        # 这里的 prompt 是一个临时的用户指令，指导小诺如何回应用户输入的名字
+        # 2. 小诺对用户名的反应
         reaction_instruction = (
             "请回应用户的回答。如果他给出了一个正常的称呼，请夸夸这个名字很好听。"
             "如果他给出了一个特别不正经的名字，请表达疑惑并要求用户确认。"
@@ -75,30 +69,29 @@ class SetupWizard:
             log_error("初始化失败：小诺未能对你的名字做出反应。")
             return
             
-        # 4. 结构化提取用户名
         log_info("正在确认并保存你的名字...")
-        # 这里的 messages 应该包含完整的对话历史，用于LLM分析
+
+        # LLM分析并提取用户的名字
         extract_prompt = (
             "请从以下对话历史中，提取出用户的名字。以严格的JSON格式返回，格式为 {\"name\": \"提取到的名字\"}。\n"
             "如果用户给出了多个名字或在犹豫，请选择最可能的那一个。\n"
             "如果用户拒绝提供名字或给出的内容完全不像名字，请返回 {\"name\": null}。\n\n"
             "对话历史：\n"
-            f"{json.dumps(self.conversation_history, ensure_ascii=False, indent=2)}" # 使用 conversation_history
+            f"{json.dumps(self.conversation_history, ensure_ascii=False, indent=2)}"
         )
-        # 注意：这里我们为提取名字的LLM调用构建了一个独立的 messages 列表，
-        # 因为它是一个“系统分析”任务，而不是小诺的对话任务。
+
         extraction_messages = [
             {"role": "system", "content": "你是一个信息提取助手，请严格按照指令提取信息并返回JSON。"},
             {"role": "user", "content": extract_prompt}
         ]
         
         json_response_str = chat_with_deepseek(
-            extraction_messages, # 使用独立的 messages 列表
+            extraction_messages,
             character_name="系统分析", 
             is_internal_thought=True
         )
         
-        final_user_name = "朋友" # 默认名
+        final_user_name = "风雪"
         if json_response_str:
             try:
                 data = json.loads(json_response_str)
@@ -112,7 +105,6 @@ class SetupWizard:
         else:
             log_error("系统分析失败，将使用默认称呼。")
             
-        # 5. 保存配置
         self._save_user_config(final_user_name)
         self.ui.display_system_message(f"好的，你的名字已设置为 '{final_user_name}'。初始化完成！", TermColors.GREEN)
 
@@ -122,15 +114,13 @@ class SetupWizard:
         调用LLM获取小诺的回应并处理。
         user_instruction 是给LLM的额外指令，作为用户消息添加到当前请求中。
         """
-        # 复制当前完整的对话历史
         current_messages = list(self.messages)
-        # 添加本次的指令作为用户消息
         current_messages.append({"role": "user", "content": user_instruction})
 
         response = chat_with_deepseek(current_messages, character_name="小诺", color_code=TermColors.CYAN)
         if response:
-            self.messages.append({"role": "assistant", "content": response}) # 将小诺的回复添加到主对话历史
-            self.conversation_history.append({"role": "assistant", "content": response}) # 记录到用于JSON提取的历史
+            self.messages.append({"role": "assistant", "content": response})
+            self.conversation_history.append({"role": "assistant", "content": response})
         else:
             log_error("初始化失败：无法从小诺获取回应。")
         return response
@@ -138,13 +128,12 @@ class SetupWizard:
     def _save_user_config(self, user_name: str):
         """将新的用户信息写入配置文件。"""
         content = (
-            "# 该文件由系统自动生成，请勿手动修改。\n\n"
             "is_first_launch = False\n"
             f'user_name = "{user_name}"\n'
         )
+
         try:
             os.makedirs(os.path.dirname(self.USER_CONFIG_PATH), exist_ok=True)
-            # 确保 data 目录是一个 Python 包
             with open(os.path.join('data', '__init__.py'), 'w') as f:
                 pass
             with open(self.USER_CONFIG_PATH, 'w', encoding='utf-8') as f:

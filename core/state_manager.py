@@ -15,10 +15,9 @@ class StateManager:
     """
     def __init__(self, session: GameSession):
         self.session = session
-        # 运行时上下文，用于存放不需存档的临时变量，如 {player_input}
-        self.runtime_context: Dict[str, Any] = {}
+        self.runtime_context: Dict[str, Any] = {} 
+        # 用于存放不需存档的临时变量但运行需要进入上下文的，如本次用户输入 {player_input}
 
-    # --- 核心状态访问属性 ---
     @property
     def game_state(self):
         return self.session.game_state
@@ -31,22 +30,18 @@ class StateManager:
     def dialogue_history(self):
         return self.session.dialogue_history
 
-    # --- 字符串格式化 ---
     def format_string(self, text: str) -> str:
         """用 game_state 和 runtime_context 中的变量替换字符串中的 {placeholder}"""
         if not isinstance(text, str):
             return text
         
-        # 正则表达式寻找 {variable_name}
         placeholders = re.findall(r'\{([a-zA-Z0-9_]+)\}', text)
         
         formatted_text = text
         for placeholder in placeholders:
             value = None
-            # 优先从运行时上下文查找
             if placeholder in self.runtime_context:
                 value = self.runtime_context[placeholder]
-            # 其次从游戏状态查找
             elif placeholder in self.game_state.variables:
                 value = self.game_state.get(placeholder)
             else:
@@ -58,7 +53,6 @@ class StateManager:
 
         return formatted_text
 
-    # --- 条件评估 ---
     def evaluate_condition(self, condition_str: str) -> bool:
         """
         安全地评估条件表达式。
@@ -69,7 +63,6 @@ class StateManager:
         log_debug(f"正在评估条件: `{condition_str}` -> `{formatted_condition}`")
         
         try:
-            # 简单的解析逻辑
             parts = formatted_condition.split()
             if len(parts) != 3:
                 log_warning(f"无效的条件格式: '{formatted_condition}'")
@@ -77,12 +70,10 @@ class StateManager:
 
             left_str, op, right_str = parts
             
-            # 尝试将操作数转为数字
             try:
                 left = float(left_str)
                 right = float(right_str)
             except ValueError:
-                # 如果失败，则作为字符串处理
                 left = left_str.strip("'\"")
                 right = right_str.strip("'\"")
 
@@ -100,7 +91,6 @@ class StateManager:
             log_warning(f"评估条件时出错: '{formatted_condition}'. 错误: {e}")
             return False
 
-    # --- 进度控制 ---
     def get_current_story_unit(self) -> Optional[StoryUnit]:
         unit_id = self.progress.pointer.current_unit_id
         return self.session.story_units.get(unit_id)
@@ -124,15 +114,12 @@ class StateManager:
         self.progress.pointer.last_completed_event_index = -1
         self.progress.runtime_state = 'ExecutingEvents'
 
-    # --- 状态修改 ---
     def set_variable(self, name: str, value: Any):
         log_debug(f"设置变量: {name} = {value}")
         self.game_state.set(name, value)
 
     def calculate_variable(self, name: str, expression: str):
-        # 注意：这里仍然使用了 eval，但在一个受限的环境中。
-        # 在生产环境中，强烈建议使用更安全的库如 `asteval`。
-        # 为了演示，我们暂时保留它，但限制其作用域。
+        # 注意：这里仍然使用了 eval，但在一个受限的环境中，未来建议使用更安全的库，如 `asteval`。
         try:
             formatted_expr = self.format_string(expression)
             result = eval(formatted_expr, {"__builtins__": {}}, self.game_state.variables)
@@ -146,7 +133,6 @@ class StateManager:
     def set_random_choice_variable(self, name: str, choices: List[Any]):
         self.set_variable(name, random.choice(choices))
 
-    # --- 对话历史 ---
     def add_dialogue_history(self, event_type: str, **kwargs):
         log_entry = {
             "id": f"evt_{uuid.uuid4()}",

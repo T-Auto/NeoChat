@@ -5,7 +5,7 @@ from .event_handler import EventHandler
 from .ui import ConsoleUI
 from .save_manager import SaveManager
 from .llm_interface import chat_with_deepseek
-from .logger import log_info, log_error, log_debug, log_info_color, TermColors
+from .logger import log_info, log_error, log_debug, log_info_color, log_warning, TermColors
 
 class GameEngine:
     """
@@ -16,7 +16,6 @@ class GameEngine:
         self.is_running = True
         self.game_over = False
 
-        # 初始化核心组件
         self.ui = ConsoleUI()
         self.state = StateManager(self.session)
         self.event_handler = EventHandler(self.state, self.ui)
@@ -93,7 +92,6 @@ class GameEngine:
             found_match = False
             for case in end_data.get('Cases', []):
                 if self.state.evaluate_condition(case['Condition']):
-                    # 递归处理 'Then' 中的EndCondition
                     self._process_end_condition_recursively(case['Then'])
                     found_match = True
                     break
@@ -107,7 +105,6 @@ class GameEngine:
     def _process_end_condition_recursively(self, end_data):
         """用于Conditional内部的递归调用，避免重复日志。"""
         # 这是一个简化的包装器，实际逻辑仍在 _process_end_condition 中
-        # 为了避免无限递归，这里可以添加深度检查
         unit = self.state.get_current_story_unit()
         unit.end_condition = end_data # 临时替换
         self._process_end_condition()
@@ -152,13 +149,12 @@ class GameEngine:
 
     def _handle_free_time(self):
         """处理自由活动时间的玩家输入和AI回应。"""
-        config = self.state.progress.context['free_time_config']
+        config = self.state.progress.context.get('free_time_config')
         user_input = self.ui.prompt_for_input()
 
         if self._handle_system_commands(user_input):
             return
 
-        # 检查退出指令
         exit_prompt = config.get('ExitPromptInInputBox', '')
         if exit_prompt and exit_prompt in user_input:
             log_info("检测到退出语，自由时间结束。")
@@ -166,20 +162,46 @@ class GameEngine:
             return
 
         self.state.add_dialogue_history('Player', content=user_input)
+        # 1. 获取可互动的角色列表
+        interact_with_list = config.get('InteractWith', [])
+        if not interact_with_list:
+            interact_with_list = list(self.state.session.characters.keys())
         
-        # AI 回应逻辑 (简化版，可扩展为轮询)
-        # 默认让DM或第一个角色回应
-        responder_id = config.get('InteractWith', [self.state.session.story_pack_config.dm_role_id or list(self.state.session.characters.keys())[0]])[0]
+        if not interact_with_list:
+            log_warning("自由时间模式下没有可互动的AI角色。")
+            return
+        # 2. 实现轮询逻辑
+        last_responder_index = self.state.progress.context.get('last_responder_index', -1)
+        next_responder_index = (last_responder_index + 1) % len(interact_with_list)
+        responder_id = interact_with_list[next_responder_index]
+        # 3. 将新的索引存回上下文，为下一次轮询做准备
+        self.state.progress.context['last_responder_index'] = next_responder_index
+        
         responder = self.state.session.characters.get(responder_id)
 
         if responder:
+            log_info_color(f"现在由 {responder.name} 来回应...", TermColors.BLUE)
             messages = [{"role": "system", "content": self.state.format_string(responder.prompt)}]
-            # 添加历史上下文
-            for record in self.state.dialogue_history[-10:]:
-                # ... (构建历史消息的逻辑)
-                pass
-            messages.append({"role": "user", "content": user_input})
-            
+            # 4. 动态构建历史上下文
+            history_count = 15 # 注意：这里的历史条数可以根据需要调整
+            player_name = self.state.session.player.name or "玩家"
+            for record in self.state.dialogue_history[-history_count:]:
+                record_content = record.get('content')
+                if not record_content and 'data' in record and isinstance(record['data'], dict):
+                    record_content = record['data'].get('content')
+                if not record_content: continue
+
+                record_type = record.get('type')
+                if record_type == 'Dialogue':
+                    char_id = record.get('data', {}).get('character_id')
+                    # 判断历史对话是谁说的，来决定 role 是 'assistant' 还是 'user'
+                    role = "assistant" if char_id == responder_id else "user"
+                    messages.append({"role": role, "content": record_content})
+                elif record_type == 'Player':
+                    messages.append({"role": "user", "content": record_content})
+                elif record_type == 'Narration':
+                    messages.append({"role": "user", "content": f"（旁白：{record_content}）"})
+
             response = chat_with_deepseek(messages, responder.name, color_code=TermColors.CYAN)
             if response:
                 self.state.add_dialogue_history('Dialogue', character_id=responder_id, content=response)
@@ -203,7 +225,6 @@ class GameEngine:
         # 1. 决策 Call
         decision_prompt = self.state.format_string(config['DecisionPromptForAI'])
         messages = [{"role": "system", "content": self.state.format_string(decider.prompt)}]
-        # ... (构建历史消息)
         messages.append({"role": "system", "content": decision_prompt})
         ai_decision_text = chat_with_deepseek(messages, character_name=f"{decider.name}(内心)", is_internal_thought=True)
         if not ai_decision_text:

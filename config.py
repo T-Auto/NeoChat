@@ -14,7 +14,6 @@ API_TIMEOUT_SECONDS = 180                 # API请求的超时时间 (秒) (建�
 
 # 系统提示词(System Prompt)
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
-# print(SYSTEM_PROMPT)
 
 # 会话与历史记录
 HISTORY_BASE_PATH = "data/Dialogue_history"    # 聊天记录保存路径 (这个在重构后可能不再直接使用，因为对话历史现在由save_manager管理并随存档保存)
@@ -23,12 +22,10 @@ SAVES_BASE_PATH = "data/saves"                 # 游戏存档保存路径
 STORY_PACKS_BASE_PATH = "data/story_packs"     # 剧本包保存路径
 CHARACTERS_BASE_PATH = "data/characters"       # AI角色人设保存路径
 PLAYER_CHARACTERS_BASE_PATH = "data/player_characters" # 玩家人设包保存路径
-# 新增或修改：将user.py的路径改为data/user_config.py
-USER_CONFIG_PATH = "data/user_config.py"
-
+USER_CONFIG_PATH = "data/user_config.py" # user.py的路径
 
 # 调试与日志
-DEBUG_MODE = False                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
+DEBUG_MODE = True                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
 
 # RAG (Retrieval Augmented Generation) 设置
 USE_RAG = True                            # 是否启用RAG功能

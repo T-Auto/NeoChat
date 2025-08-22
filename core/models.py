@@ -1,8 +1,5 @@
-# core/models.py
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-
-# --- 核心状态模型 ---
 
 @dataclass
 class GameState:
@@ -15,13 +12,11 @@ class GameState:
     def set(self, key: str, value: Any):
         self.variables[key] = value
 
-
 @dataclass
 class ProgressPointer:
     """指向当前剧情单元和事件的指针。"""
     current_unit_id: str
     last_completed_event_index: int = -1
-
 
 @dataclass
 class GameProgress:
@@ -31,11 +26,7 @@ class GameProgress:
     last_saved_timestamp: str
     pointer: ProgressPointer
     runtime_state: str = "ExecutingEvents"
-    # 用于存储自由时间、选择等临时上下文
     context: Dict[str, Any] = field(default_factory=dict)
-
-
-# --- 角色与玩家模型 ---
 
 @dataclass
 class Character:
@@ -44,39 +35,27 @@ class Character:
     name: str
     prompt: str
 
-
 @dataclass
 class Player:
     """代表玩家角色。"""
     name: str
     prompt: Optional[str] = ""
 
-
-# --- 剧情与事件模型 ---
-
 @dataclass
 class StoryEvent:
     """所有事件类的基类。"""
     raw_data: Dict[str, Any]
 
-
 @dataclass
 class NarrationEvent(StoryEvent):
     content: str
-    mode: str  # Preset or Prompt
-
+    mode: str
 
 @dataclass
 class DialogueEvent(StoryEvent):
     character_id: str
     content: str
-    mode: str  # Preset or Prompt
-
-# ... 你可以为 'Action', 'PlayerInput', 'Chapter' 等所有事件类型创建对应的模型
-# 这里为了简洁，我们先定义最核心的几个
-
-
-# --- 容器模型 ---
+    mode: str 
 
 @dataclass
 class StoryUnit:
@@ -85,7 +64,6 @@ class StoryUnit:
     events: List[Dict[str, Any]]
     end_condition: Optional[Dict[str, Any]]
 
-
 @dataclass
 class StoryPack:
     """代表一个完整的剧本包。"""
@@ -93,7 +71,6 @@ class StoryPack:
     start_unit_id: str
     character_roles: List[str]
     dm_role_id: Optional[str] = None
-
 
 @dataclass
 class GameSession:

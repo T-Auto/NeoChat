@@ -12,7 +12,6 @@ from .logger import log_info, log_error, log_debug
 
 class SaveManager:
     """处理所有与文件系统相关的加载和保存操作。"""
-
     def _load_yaml(self, path: str) -> Optional[Dict]:
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -69,7 +68,6 @@ class SaveManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             save_path = os.path.join(config.SAVES_BASE_PATH, f"save_{timestamp}")
             os.makedirs(os.path.join(save_path, "save"), exist_ok=True)
-            
             # 2. 复制剧本和角色文件
             shutil.copytree(story_pack_path, save_path, dirs_exist_ok=True)
             char_dir_in_save = os.path.join(save_path, "character")
@@ -96,7 +94,6 @@ class SaveManager:
             game_state.set('player_name', player.name) # 将玩家名注入初始状态
             for role_id, char in characters.items():
                  game_state.set(f'character_name_{role_id}', char.name)
-
 
             game_progress = GameProgress(
                 save_name="New Game",
@@ -136,7 +133,6 @@ class SaveManager:
         self._save_yaml(os.path.join(save_dir, 'gamestate.yaml'), session.game_state.variables)
         self._save_yaml(os.path.join(save_dir, 'dialogue_history.yaml'), session.dialogue_history)
         
-        # 保存 progress 时需要将 dataclass 转换为 dict
         progress_dict = {
             "save_name": session.game_progress.save_name,
             "story_pack_id": session.game_progress.story_pack_id,
@@ -157,7 +153,7 @@ class SaveManager:
         """从存档目录加载完整的游戏会话。"""
         try:
             save_dir = os.path.join(save_path, 'save')
-            
+
             # 加载核心数据
             gamestate_data = self._load_yaml(os.path.join(save_dir, 'gamestate.yaml')) or {}
             progress_data = self._load_yaml(os.path.join(save_dir, 'game_progress.yaml'))
@@ -176,13 +172,11 @@ class SaveManager:
             if os.path.isdir(char_dir):
                 for filename in os.listdir(char_dir):
                     if filename.endswith('.yaml'):
-                        # 假设 role_id 是根据文件名推断的，这可能需要更稳健的策略
                         role_id = os.path.splitext(os.path.basename(filename))[0]
                         char_data = self._load_yaml(os.path.join(char_dir, filename))
                         if char_data:
                             characters[role_id] = Character(role_id=role_id, name=char_data.get('name'), prompt=char_data.get('prompt'))
-            
-            # 组装模型对象
+
             game_state = GameState(variables=gamestate_data)
             pointer_data = progress_data.get('progress_pointer', {})
             game_progress = GameProgress(
@@ -196,7 +190,7 @@ class SaveManager:
                     last_completed_event_index=pointer_data.get('last_completed_event_index', -1)
                 )
             )
-            # 假设玩家信息存储在 gamestate 中
+
             player = Player(name=game_state.get('player_name', '玩家'))
 
             log_info(f"成功从 {save_path} 加载存档。")

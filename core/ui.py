@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 
 class ConsoleUI:
     """负责所有与控制台的输入输出。"""
-
     def display_narration(self, text: str):
         print(f"{TermColors.GREY}旁白: {text}{TermColors.RESET}")
 
@@ -31,7 +30,6 @@ class ConsoleUI:
     def prompt_for_input(self, prompt_text: Optional[str] = None) -> str:
         """获取玩家输入。"""
         if prompt_text:
-            # 用于有默认值的输入
             print(f"{TermColors.YELLOW}你 (可输入或直接回车使用默认): {prompt_text}{TermColors.RESET}")
         else:
             print(f"{TermColors.YELLOW}你:{TermColors.RESET} ", end="")
@@ -40,4 +38,4 @@ class ConsoleUI:
         
     def clear_screen(self):
         # 简单的清屏实现
-        print("\n" * 2) # 简化，避免平台差异
+        print("\n" * 2)
