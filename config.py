@@ -14,6 +14,8 @@ API_TIMEOUT_SECONDS = 180                 # API请求的超时时间 (秒) (建�
 # 系统提示词(System Prompt)
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
 
+LLM_CONVERSATION_HISTORY_LIMIT = 50 # LLM对话历史长度限制，超过此长度将截断。根据模型和API限制调整。后续将改为RAG系统。
+
 # 会话与历史记录
 HISTORY_BASE_PATH = "data/Dialogue_history"    # 聊天记录保存路径 (这个在重构后可能不再直接使用，因为对话历史现在由save_manager管理并随存档保存)
 CHROMA_DB_PATH = "data/chroma_db_store"      # RAG缓存路径，ChromaDB持久化存储路径。可安全删除，删除后会根据Json聊天记录重新生成，但更耗时。

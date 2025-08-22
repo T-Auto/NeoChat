@@ -7,6 +7,8 @@ from .save_manager import SaveManager
 from .llm_interface import chat_with_deepseek
 from .logger import log_info, log_error, log_debug, log_info_color, log_warning, TermColors
 
+import config
+
 class GameEngine:
     """
     游戏主引擎，负责驱动游戏循环和协调各个组件。
@@ -183,7 +185,7 @@ class GameEngine:
             log_info_color(f"现在由 {responder.name} 来回应...", TermColors.BLUE)
             messages = [{"role": "system", "content": self.state.format_string(responder.prompt)}]
             # 4. 动态构建历史上下文
-            history_count = 15 # 注意：这里的历史条数可以根据需要调整
+            history_count = config.LLM_CONVERSATION_HISTORY_LIMIT  # 注意：这里的历史条数可以根据需要调整
             player_name = self.state.session.player.name or "玩家"
             for record in self.state.dialogue_history[-history_count:]:
                 record_content = record.get('content')

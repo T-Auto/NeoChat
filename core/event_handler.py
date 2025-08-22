@@ -5,6 +5,8 @@ from .ui import ConsoleUI
 from .llm_interface import chat_with_deepseek
 from .logger import log_debug, log_error, log_info, log_info_color, TermColors
 
+import config
+
 class EventHandler:
     """
     处理单个剧情事件，执行其逻辑。
@@ -187,7 +189,7 @@ class EventHandler:
             if include_history:
                 log_debug("SystemAction: 检测到 IncludeHistory=true，正在构建历史上下文...")
                 # ※※※※※※※※修改这里可以更改定包含的历史记录数量※※※※※※※※
-                history_count = 15  
+                history_count = config.LLM_CONVERSATION_HISTORY_LIMIT 
                 formatted_history_lines = []
                 player_name = self.state.session.player.name or "玩家"
 
