@@ -1,4 +1,3 @@
-# core/event_handler.py
 from typing import Any, Dict
 
 from .state_manager import StateManager

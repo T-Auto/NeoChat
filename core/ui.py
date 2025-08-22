@@ -1,4 +1,3 @@
-# core/ui.py
 from .logger import TermColors
 from typing import Dict, List, Optional
 

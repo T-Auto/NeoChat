@@ -1,10 +1,7 @@
-# main.py
 import os
 import sys
-import yaml # 确保PyYAML已安装
+import yaml
 
-# 将项目根目录添加到Python的模块搜索路径中
-# 这使得我们可以从 core/ 目录内部导入 llm_interface, config 等
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import config
@@ -12,9 +9,8 @@ from core.logger import initialize_logger, log_info, log_error, log_warning, Ter
 from core.engine import GameEngine
 from core.save_manager import SaveManager
 from core.ui import ConsoleUI
-from core.setup_wizard import SetupWizard # 导入新的设置向导
+from core.setup_wizard import SetupWizard
 
-# --- 辅助函数：从列表中选择 ---
 def select_from_list(items: list, prompt: str, ui: ConsoleUI) -> any:
     """
     显示一个列表供用户选择，并返回用户选择的项。
@@ -27,7 +23,7 @@ def select_from_list(items: list, prompt: str, ui: ConsoleUI) -> any:
     while True:
         try:
             choice_str = ui.prompt_for_input(f"{prompt} (输入数字)")
-            if choice_str is None: # 用户可能按Ctrl+C或EOF
+            if choice_str is None:
                 return None
             choice_idx = int(choice_str) - 1
             if 0 <= choice_idx < len(items):
@@ -40,7 +36,6 @@ def select_from_list(items: list, prompt: str, ui: ConsoleUI) -> any:
             ui.display_system_message("\n操作取消。", TermColors.YELLOW)
             return None
 
-# --- 游戏启动/加载逻辑 ---
 def start_new_game(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine | None:
     """
     引导用户开始一个新游戏，包括选择剧本、角色和玩家人设。
@@ -86,10 +81,10 @@ def start_new_game(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine | Non
         chosen_char_file = select_from_list(current_available_chars, f"选择 '{role_id}' 的人设", ui)
         if not chosen_char_file: return None
         character_selections[role_id] = os.path.join(chars_path, chosen_char_file)
-        current_available_chars.remove(chosen_char_file) # 移除已选，避免重复
+        current_available_chars.remove(chosen_char_file)
 
     # 4. 选择玩家人设
-    player_data = {'player_name': '玩家', 'player_prompt': ''} # 默认值
+    player_data = {'player_name': '玩家', 'player_prompt': ''} 
     player_chars_path = config.PLAYER_CHARACTERS_BASE_PATH
     available_player_chars_files = [f for f in os.listdir(player_chars_path) if f.endswith('.yaml')]
     
@@ -139,23 +134,21 @@ def load_game_from_save(save_manager: SaveManager, ui: ConsoleUI) -> GameEngine 
         return GameEngine(session)
     return None
 
-# --- 主程序入口 ---
 def main():
     # 1. 初始化日志系统
     initialize_logger(config_debug_mode=config.DEBUG_MODE)
-    ui = ConsoleUI() # 初始化UI组件
+    ui = ConsoleUI()
 
     # 2. 检查API Key配置
     if not config.API_KEY or "YOUR_DEEPSEEK_API_KEY" in config.API_KEY:
         log_error("请在项目根目录的 '.env' 文件中设置你的 DeepSeek API Key (API_KEY)。")
         log_error("例如: API_KEY=\"sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"")
-        ui.prompt_for_input("按回车键退出...") # 暂停，让用户看到错误信息
+        ui.prompt_for_input("按回车键退出...") 
         return
-        
+
     # 3. 确保核心文件夹存在
     for path in [config.SAVES_BASE_PATH, config.STORY_PACKS_BASE_PATH, config.CHARACTERS_BASE_PATH, config.PLAYER_CHARACTERS_BASE_PATH]:
         os.makedirs(path, exist_ok=True)
-    # 确保 data 目录是一个 Python 包，以便导入 user_config
     os.makedirs('data', exist_ok=True)
     with open(os.path.join('data', '__init__.py'), 'w') as f: # 创建空的 __init__.py
         pass
@@ -166,15 +159,15 @@ def main():
         wizard = SetupWizard(ui)
         wizard.run()
         log_info("初始化完成。请重新启动程序以应用新的用户配置并开始游戏。")
-        ui.prompt_for_input("按回车键退出...") # 暂停，让用户看到信息
-        return # 首次设置后退出，让用户重启
+        ui.prompt_for_input("按回车键退出...")
+        return
 
     # 5. 初始化 SaveManager (在首次启动后才需要)
     save_manager = SaveManager()
 
     # 6. 主菜单循环
     while True:
-        ui.clear_screen() # 清屏，让菜单更整洁
+        ui.clear_screen()
         print("\n" + "="*30)
         print(" NeoChat 0.5 (重构版)")
         print("="*30)
@@ -185,7 +178,7 @@ def main():
         try:
             command = ui.prompt_for_input("> ").lower().strip()
         except (EOFError, KeyboardInterrupt):
-            command = '/exit' # 捕获Ctrl+C，优雅退出
+            command = '/exit'
 
         engine = None
         if command == '/start':
@@ -197,13 +190,11 @@ def main():
             break
         else:
             ui.display_system_message("无效的命令。", TermColors.RED)
-            # 暂停一下，让用户看到错误信息
             ui.prompt_for_input("按回车键继续...")
             continue
         
         if engine:
             engine.run()
-            # 游戏结束后，返回主菜单
             ui.prompt_for_input("游戏结束。按回车键返回主菜单...")
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-# core/state_manager.py
 import re
 import random
 import uuid

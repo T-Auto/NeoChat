@@ -1,4 +1,3 @@
-# core/save_manager.py
 import os
 import shutil
 import yaml
