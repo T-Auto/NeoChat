@@ -151,31 +151,25 @@ class GameEngine:
 
     def _handle_free_time(self):
         """处理自由活动时间的玩家输入和AI回应。"""
-        free_time_config_data = self.state.progress.context.get('free_time_config') 
+        free_time_config_data = self.state.progress.context.get('free_time_config')
         user_input = self.ui.prompt_for_input()
 
         if self._handle_system_commands(user_input):
             return
 
         exit_prompt = free_time_config_data.get('ExitPromptInInputBox', '')
-        # 此处使用原始的 user_input 来检查退出语，避免“...”意外触发退出
-        if exit_prompt and exit_prompt in user_input: 
+        if exit_prompt and exit_prompt in user_input:
             log_info("检测到退出语，自由时间结束。")
             self.state.transition_to_unit(free_time_config_data['NextUnitID'])
             return
 
-        final_player_input = user_input
-        # 如果玩家输入为空或只包含空白符，则将其视为“沉默”
-        if not user_input.strip():
-            final_player_input = "..." # 表达玩家沉默/思考
-            # 显式地在UI上显示，让玩家知道系统如何处理了这个空输入
+        final_player_input = user_input if user_input.strip() else "..."
+        if final_player_input == "...":
             self.ui.display_player_dialogue(self.state.session.player.name, final_player_input)
             log_debug("玩家输入为空，已将其解释为 '...' (沉默)。")
         
-        # 将处理后的输入（可能是原始输入，也可能是“...”）添加到对话历史
         self.state.add_dialogue_history('Player', content=final_player_input)
         
-        # 1. 获取可互动的角色列表
         interact_with_list = free_time_config_data.get('InteractWith', [])
         if not interact_with_list:
             interact_with_list = list(self.state.session.characters.keys())
@@ -184,47 +178,140 @@ class GameEngine:
             log_warning("自由时间模式下没有可互动的AI角色。")
             return
 
-        # 2. 实现轮询逻辑
-        last_responder_index = self.state.progress.context.get('last_responder_index', -1)
-        next_responder_index = (last_responder_index + 1) % len(interact_with_list)
-        responder_id = interact_with_list[next_responder_index]
-        # 3. 将新的索引存回上下文，为下一次轮询做准备
-        self.state.progress.context['last_responder_index'] = next_responder_index
-        
-        responder = self.state.session.characters.get(responder_id)
+        # 根据配置决定对话顺序模式
+        dialogue_order_mode = free_time_config_data.get('DialogueOrder', 'RoundRobin')
 
-        if responder:
-            log_info_color(f"现在由 {responder.name} 来回应...", TermColors.BLUE)
-            messages = [{"role": "system", "content": self.state.format_string(responder.prompt)}]
-            # 4. 动态构建历史上下文
-            history_count = config.LLM_CONVERSATION_HISTORY_LIMIT
-            player_name = self.state.session.player.name or "玩家"
-            for record in self.state.dialogue_history[-history_count:]:
-                record_content = record.get('content')
-                if not record_content and 'data' in record and isinstance(record['data'], dict):
-                    record_content = record['data'].get('content')
-                if not record_content: continue
+        responder_ids_in_order = []
+        if dialogue_order_mode == 'Auto' and len(interact_with_list) > 1:
+            log_info_color("AI 正在判断由谁来回应...", TermColors.MAGENTA)
+            responder_ids_in_order = self._decide_auto_response_order(interact_with_list)
+        else: # 默认RoundRobin模式，或只有一个角色
+            last_responder_index = self.state.progress.context.get('last_responder_index', -1)
+            next_responder_index = (last_responder_index + 1) % len(interact_with_list)
+            responder_ids_in_order.append(interact_with_list[next_responder_index])
+            self.state.progress.context['last_responder_index'] = next_responder_index
 
-                record_type = record.get('type')
-                if record_type == 'Dialogue':
-                    char_id = record.get('data', {}).get('character_id')
-                    # 判断历史对话是谁说的，来决定 role 是 'assistant' 还是 'user'
-                    role = "assistant" if char_id == responder_id else "user"
-                    messages.append({"role": role, "content": record_content})
-                elif record_type == 'Player':
-                    messages.append({"role": "user", "content": record_content})
-                elif record_type == 'Narration':
-                    messages.append({"role": "user", "content": f"（旁白：{record_content}）"})
+        # 循环让决定好的角色依次发言
+        for responder_id in responder_ids_in_order:
+            responder = self.state.session.characters.get(responder_id)
+            if responder:
+                log_info_color(f"现在由 {responder.name} 来回应...", TermColors.BLUE)
+                messages = [{"role": "system", "content": self.state.format_string(responder.prompt)}]
+                history_count = config.LLM_CONVERSATION_HISTORY_LIMIT
+                for record in self.state.dialogue_history[-history_count:]:
+                    record_content = record.get('content') or record.get('data', {}).get('content')
+                    if not record_content: continue
 
-            response = chat_with_deepseek(messages, responder.name, color_code=TermColors.CYAN)
-            if response:
-                self.state.add_dialogue_history('Dialogue', character_id=responder_id, content=response)
+                    record_type = record.get('type')
+                    if record_type == 'Dialogue':
+                        char_id = record.get('data', {}).get('character_id')
+                        role = "assistant" if char_id == responder_id else "user"
+                        messages.append({"role": role, "content": record_content})
+                    elif record_type == 'Player':
+                        messages.append({"role": "user", "content": record_content})
+                    elif record_type == 'Narration':
+                        messages.append({"role": "user", "content": f"（旁白：{record_content}）"})
+
+                response = chat_with_deepseek(messages, responder.name, color_code=TermColors.CYAN)
+                if response:
+                    self.state.add_dialogue_history('Dialogue', character_id=responder_id, content=response)
 
         # 检查回合数限制
         self.state.progress.context['turns_taken'] += 1
         if free_time_config_data['Type'] == 'LimitedFreeTime' and self.state.progress.context['turns_taken'] >= free_time_config_data['MaxTurns']:
             log_info("达到最大轮次，自由时间结束。")
             self.state.transition_to_unit(free_time_config_data['NextUnitID'])
+
+    def _decide_auto_response_order(self, participant_ids: list[str]) -> list[str]:
+        """使用LLM决定在自由对话中，接下来应该由哪个或哪些AI角色按什么顺序回应。"""
+        # 1. 构建角色信息
+        character_profiles = []
+        player_profile = f"ID: Player, 姓名: {self.state.session.player.name}, 人设: {self.state.session.player.prompt or '玩家自己'}"
+        character_profiles.append(player_profile)
+
+        for char_id in participant_ids:
+            char = self.state.session.characters.get(char_id)
+            if char:
+                profile = f"ID: {char_id}, 姓名: {char.name}, 人设: {self.state.format_string(char.prompt)}"
+                character_profiles.append(profile)
+        
+        # 2. 构建对话历史
+        history_lines = []
+        history_count = config.LLM_FREE_TIME_HISTORY_LIMIT
+        for record in self.state.dialogue_history[-history_count:]:
+            record_content = record.get('content') or record.get('data', {}).get('content')
+            if not record_content: continue
+            
+            line = ""
+            record_type = record.get('type')
+            if record_type == 'Dialogue':
+                char_id = record.get('data', {}).get('character_id')
+                char_name = self.state.session.characters.get(char_id).name
+                line = f"{char_name}: {record_content}"
+            elif record_type == 'Player':
+                line = f"{self.state.session.player.name}: {record_content}"
+            
+            if line:
+                history_lines.append(line.strip())
+
+        # 3. 构建完整的System Prompt
+        system_prompt = (
+            "你是一个对话流程控制器和社交观察AI。你的任务是根据当前对话的上下文、人物性格，来决定在玩家发言后，接下来应该由哪个或哪些AI角色进行回应，以及他们的回应顺序。"
+            "你的决策必须合乎逻辑和情理。例如：\n"
+            "- 如果玩家直接向某个角色提问，那个角色应该最先回应。\n"
+            "- 如果一个角色长时间没有发言，而当前话题又与他相关，他可能会主动插话。\n"
+            "- 可能会有多个角色同时对玩家的话产生反应，他们可能都发言。\n"
+            f"你需要从以下AI角色中选择：{', '.join(participant_ids)}。\n"
+            "你的输出必须极为简洁，只能包含你决定要回应的角色的ID，并按照回应的先后顺序排列，中间不加任何分隔符。例如，如果决定让角色'Yuki'先说，然后是'Aki'，你就应该只输出 'YukiAki'。如果只让'Aki'说，就输出 'Aki'。绝对不要包含任何解释、理由或额外文字。三个角色以及以上也以此类推。"
+            "玩家看起来是在和谁互动就谁先回应，没有明显互动的角色可以不回应。除非该角色长时间没有发言。尽量只减少都回应的可能，挑选一些人来回应"
+
+        )
+        
+        # 4. 构建User Prompt
+        user_prompt = (
+            "--- 角色信息 ---\n"
+            f"{'\n'.join(character_profiles)}\n\n"
+            "--- 最近对话历史 (最后一句是玩家刚刚的发言) ---\n"
+            f"{'\n'.join(history_lines)}\n\n"
+            "--- 任务 ---\n"
+            f"System: 根据以上所有信息，决定接下来由谁（从 {', '.join(participant_ids)} 中选择）以何种顺序回应。\n"
+            "请严格按照格式要求输出角色ID序列。玩家看起来是在和谁互动就谁先回应，没有明显互动的角色可以不回应。除非该角色长时间没有发言。尽量只减少都回应的可能，挑选一些人来回应"
+        )
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response_str = chat_with_deepseek(messages, character_name="对话控制器", is_internal_thought=True)
+        if not response_str:
+            log_warning("AI未能决定对话顺序，将使用默认轮询。")
+            return [participant_ids[0]]
+
+        # 5. 解析LLM的输出
+        response_str = response_str.strip()
+        ordered_responders = []
+        temp_response_str = response_str
+        
+        # 使用贪婪匹配来解析ID序列，防止ID包含关系导致解析错误（例如 'A' 和 'AB'）
+        sorted_ids = sorted(participant_ids, key=len, reverse=True)
+        
+        while temp_response_str:
+            found_match = False
+            for char_id in sorted_ids:
+                if temp_response_str.startswith(char_id):
+                    if char_id not in ordered_responders:
+                        ordered_responders.append(char_id)
+                    temp_response_str = temp_response_str[len(char_id):]
+                    found_match = True
+                    break
+            if not found_match:
+                log_warning(f"无法解析AI返回的对话顺序中的剩余部分: '{temp_response_str}'。原始回复: '{response_str}'")
+                break
+
+        log_debug(f"AI决定的对话顺序为: {ordered_responders}")
+        return ordered_responders if ordered_responders else [participant_ids[0]]
+
 
     def _execute_ai_choice(self, config: dict):
         """执行 AI 决策逻辑。"""
@@ -265,7 +352,7 @@ class GameEngine:
         
         branches = config.get('Branches', {})
         if final_choice in branches:
-            self.state.transition_to_unit(branches[final_choice])
+            self.state.transition_to_unit(branches[final_choice]['NextUnitID'])
         else:
             log_error(f"判断结果 '{final_choice}' 无效，在 Branches 中找不到匹配项。")
             self.game_over = True
