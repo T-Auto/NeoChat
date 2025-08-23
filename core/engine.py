@@ -151,27 +151,39 @@ class GameEngine:
 
     def _handle_free_time(self):
         """处理自由活动时间的玩家输入和AI回应。"""
-        config = self.state.progress.context.get('free_time_config')
+        free_time_config_data = self.state.progress.context.get('free_time_config') 
         user_input = self.ui.prompt_for_input()
 
         if self._handle_system_commands(user_input):
             return
 
-        exit_prompt = config.get('ExitPromptInInputBox', '')
-        if exit_prompt and exit_prompt in user_input:
+        exit_prompt = free_time_config_data.get('ExitPromptInInputBox', '')
+        # 此处使用原始的 user_input 来检查退出语，避免“...”意外触发退出
+        if exit_prompt and exit_prompt in user_input: 
             log_info("检测到退出语，自由时间结束。")
-            self.state.transition_to_unit(config['NextUnitID'])
+            self.state.transition_to_unit(free_time_config_data['NextUnitID'])
             return
 
-        self.state.add_dialogue_history('Player', content=user_input)
+        final_player_input = user_input
+        # 如果玩家输入为空或只包含空白符，则将其视为“沉默”
+        if not user_input.strip():
+            final_player_input = "..." # 表达玩家沉默/思考
+            # 显式地在UI上显示，让玩家知道系统如何处理了这个空输入
+            self.ui.display_player_dialogue(self.state.session.player.name, final_player_input)
+            log_debug("玩家输入为空，已将其解释为 '...' (沉默)。")
+        
+        # 将处理后的输入（可能是原始输入，也可能是“...”）添加到对话历史
+        self.state.add_dialogue_history('Player', content=final_player_input)
+        
         # 1. 获取可互动的角色列表
-        interact_with_list = config.get('InteractWith', [])
+        interact_with_list = free_time_config_data.get('InteractWith', [])
         if not interact_with_list:
             interact_with_list = list(self.state.session.characters.keys())
         
         if not interact_with_list:
             log_warning("自由时间模式下没有可互动的AI角色。")
             return
+
         # 2. 实现轮询逻辑
         last_responder_index = self.state.progress.context.get('last_responder_index', -1)
         next_responder_index = (last_responder_index + 1) % len(interact_with_list)
@@ -185,7 +197,7 @@ class GameEngine:
             log_info_color(f"现在由 {responder.name} 来回应...", TermColors.BLUE)
             messages = [{"role": "system", "content": self.state.format_string(responder.prompt)}]
             # 4. 动态构建历史上下文
-            history_count = config.LLM_CONVERSATION_HISTORY_LIMIT  # 注意：这里的历史条数可以根据需要调整
+            history_count = config.LLM_CONVERSATION_HISTORY_LIMIT
             player_name = self.state.session.player.name or "玩家"
             for record in self.state.dialogue_history[-history_count:]:
                 record_content = record.get('content')
@@ -210,9 +222,9 @@ class GameEngine:
 
         # 检查回合数限制
         self.state.progress.context['turns_taken'] += 1
-        if config['Type'] == 'LimitedFreeTime' and self.state.progress.context['turns_taken'] >= config['MaxTurns']:
+        if free_time_config_data['Type'] == 'LimitedFreeTime' and self.state.progress.context['turns_taken'] >= free_time_config_data['MaxTurns']:
             log_info("达到最大轮次，自由时间结束。")
-            self.state.transition_to_unit(config['NextUnitID'])
+            self.state.transition_to_unit(free_time_config_data['NextUnitID'])
 
     def _execute_ai_choice(self, config: dict):
         """执行 AI 决策逻辑。"""
