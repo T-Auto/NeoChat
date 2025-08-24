@@ -28,7 +28,7 @@ PLAYER_CHARACTERS_BASE_PATH = "data/player_characters" # 玩家人设包保存�
 USER_CONFIG_PATH = "data/user_config.py" # user.py的路径
 
 # 调试与日志
-DEBUG_MODE = True                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
+DEBUG_MODE = False                         #开启/关闭开发者模式。设置为True/False将开关Debug日志。
 
 # RAG (Retrieval Augmented Generation) 设置
 USE_RAG = True                            # 是否启用RAG功能
