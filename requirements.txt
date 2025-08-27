@@ -6,3 +6,6 @@ requests
 # gemini-api需要的依赖
 google-generativeai
 jsonpath-ng
+
+
+prompt-toolkit

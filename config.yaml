@@ -2,7 +2,7 @@
 
 # 调试与日志
 debug:
-  mode: true # 开启/关闭开发者模式。设置为True/False将开关Debug日志。
+  mode: False # 开启/关闭开发者模式。设置为True/False将开关Debug日志。
 
 # 路径配置
 paths:
@@ -23,7 +23,7 @@ rag:
 # LLM配置
 llm:
   # 当前激活的 LLM 服务商。这里的名字必须与下面 providers 列表中的一个键匹配。
-  active_provider: "gemini_official"
+  active_provider: "deepseek_official"
 
   # API 请求的全局超时时间 (秒)
   timeout_seconds: 180
