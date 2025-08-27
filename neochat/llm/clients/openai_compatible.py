@@ -14,8 +14,8 @@ class OpenAICompatibleClient(BaseLLMClient):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.api_key = config.get("api_key")
-        self.base_url = config.get("base_url").rstrip('/')
-        self.api_path = config.get("api_path")
+        self.base_url = config.get("base_url", "").rstrip('/')
+        self.api_path = config.get("api_path", "")
         self.full_url = f"{self.base_url}{self.api_path}"
 
     def chat_completion(
@@ -39,15 +39,22 @@ class OpenAICompatibleClient(BaseLLMClient):
             "Authorization": f"Bearer {self.api_key}"
         }
 
-        # <--- 问题修复在这里 --->
-        # self.default_parameters 是一个对象，而不是字典。
-        # 我们使用 vars() 将其转换为字典，然后再进行复制和更新。
+        # --- BUG 修复在这里 ---
+        # 使其能够同时处理来自 main.py 的对象和来自 chat.py 的字典
         final_params = {}
         if self.default_parameters:
-            final_params = vars(self.default_parameters).copy()
-        
+            # 如果是字典 (来自 chat.py)，直接复制
+            if isinstance(self.default_parameters, dict):
+                final_params = self.default_parameters.copy()
+            # 否则，假定它是对象 (来自 main.py)，使用 vars()
+            else:
+                try:
+                    final_params = vars(self.default_parameters).copy()
+                except TypeError:
+                    log_warning("default_parameters 既不是字典也不是有效对象，将被忽略。")
+
         final_params.update(kwargs)
-        # <--- 修复结束 --->
+        # --- 修复结束 ---
 
         payload = {
             "model": model or self.default_model,

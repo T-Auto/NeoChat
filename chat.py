@@ -42,11 +42,8 @@ def select_from_list(title: str, options: List[str]) -> Optional[str]:
     """
     selected_index = 0
     
-    # 定义按键绑定
     bindings = KeyBindings()
 
-    # --- BUG 修复在这里 ---
-    # 将 @bindings.handle 改为 @bindings.add
     @bindings.add("up")
     def _(event):
         nonlocal selected_index
@@ -65,9 +62,7 @@ def select_from_list(title: str, options: List[str]) -> Optional[str]:
     @bindings.add("q")
     def _(event):
         event.app.exit(result=None)
-    # --- 修复结束 ---
 
-    # 定义如何动态生成菜单的显示内容
     def get_menu_text():
         formatted_menu = [
             ('class:title', f"{title}\n"),
@@ -80,22 +75,25 @@ def select_from_list(title: str, options: List[str]) -> Optional[str]:
                 formatted_menu.append(('', f"  {option}\n"))
         return FormattedText(formatted_menu)
 
-    # 定义样式
     style = Style.from_dict({
         'title': 'bold',
         'selected': 'reverse',
     })
     
-    # 创建布局和应用
-    layout = Layout(Window(content=FormattedTextControl(
-        text=get_menu_text,
-        key_bindings=bindings,
-        focusable=True
-    )))
+    # --- BUG 修复在这里 ---
+    # 将错误的 show_cursor=False 替换为正确的 always_hide_cursor=True
+    layout = Layout(Window(
+        content=FormattedTextControl(
+            text=get_menu_text,
+            key_bindings=bindings,
+            focusable=True
+        ),
+        always_hide_cursor=True
+    ))
+    # --- 修复结束 ---
 
     app = Application(layout=layout, style=style, full_screen=False)
     
-    # 运行应用并返回结果
     result = app.run()
     return result
 
@@ -115,10 +113,9 @@ def initialize_llm_client(provider_config: Dict[str, Any]) -> Optional[BaseLLMCl
         log_error(f"错误: 请在项目根目录的 '.env' 文件中设置环境变量 '{api_key_env}'。")
         return None
 
-    # 构建传递给客户端构造函数的配置字典
     client_init_config = provider_config.get("config", {})
     client_init_config['api_key'] = api_key
-    client_init_config['default_model'] = provider_config['models'][0] # 默认模型
+    client_init_config['default_model'] = provider_config['models'][0]
     client_init_config['default_parameters'] = provider_config.get('default_parameters', {})
     
     try:
@@ -156,7 +153,7 @@ def stream_llm_response(client: BaseLLMClient, model: str, messages: List[Dict[s
             full_response += chunk
         
         if not first_chunk:
-            print() # 换行
+            print()
 
     except Exception as e:
         log_error(f"与LLM通信时发生错误: {e}", exc_info=True)
@@ -172,7 +169,6 @@ def main():
     load_dotenv()
     initialize_logger(app_name="NeoChat-DirectChat")
 
-    # 1. 加载 chat_config.yaml
     try:
         with open("chat_config.yaml", 'r', encoding='utf-8') as f:
             chat_config = yaml.safe_load(f)
@@ -184,7 +180,6 @@ def main():
         input("按回车键退出...")
         return
 
-    # 2. 交互式选择提供商和模型
     provider_names = [p['name'] for p in providers]
     selected_provider_name = select_from_list("请选择一个模型服务提供商:", provider_names)
     if not selected_provider_name:
@@ -199,7 +194,6 @@ def main():
         log_info_color("操作已取消。", TermColors.YELLOW)
         return
 
-    # 3. 初始化选择的LLM客户端
     llm_client = initialize_llm_client(selected_provider_config)
     if not llm_client:
         input("按回车键退出...")
@@ -207,7 +201,6 @@ def main():
         
     log_info_color(f"模型已选定: {selected_provider_name} - {selected_model}", TermColors.GREEN)
 
-    # 4. 进入聊天循环
     chat_system_prompt = os.getenv("CHAT_SYSTEM_PROMPT", "你是一个AI助手。")
     messages = [{"role": "system", "content": chat_system_prompt}]
 
@@ -265,7 +258,7 @@ def main():
                 messages.append({"role": "assistant", "content": response_text})
             else:
                 log_error("未能从AI获取回应，请检查网络或API配置。")
-                messages.pop() # 移除失败的用户输入
+                messages.pop()
 
     except (KeyboardInterrupt, EOFError):
         print("\n")
