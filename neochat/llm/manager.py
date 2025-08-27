@@ -3,12 +3,16 @@ from neochat.platform.configuration import config
 from neochat.platform.logging import log_info, log_error
 from neochat.llm.clients.base import BaseLLMClient
 from neochat.llm.clients.openai_compatible import OpenAICompatibleClient
+# <--- 新增导入 --->
+from neochat.llm.clients.gemini import GeminiClient
+from neochat.llm.clients.custom_http import CustomHttpClient
 
 # 客户端类型与实现类的映射
 CLIENT_MAPPING = {
     "openai_compatible": OpenAICompatibleClient,
-    # 未来可以添加更多非 OpenAI 兼容的客户端类型
-    # "gemini": GeminiClient,
+    # <--- 新增映射 --->
+    "gemini": GeminiClient,
+    "custom_http": CustomHttpClient,
 }
 
 class LLMManager:

@@ -120,3 +120,15 @@ llm:
       default_model: "Skylark2-pro-4k" # 替换为你需要的模型
       default_parameters:
         temperature: 0.7
+
+    # 8. gemini 官方 API
+      gemini_official:
+      type: "gemini" # <-- 使用新的客户端类型
+      api_key: "${GEMINI_API_KEY}" # <-- 从 .env 读取 GEMINI_API_KEY
+      default_model: "gemini-1.5-pro-latest"
+      default_parameters:
+        temperature: 0.7
+        # Gemini 使用 top_p 和 top_k, max_tokens 对应 max_output_tokens
+        top_p: 1.0
+        top_k: 32
+        max_tokens: 8192 # 客户端内部会将其映射为 max_output_tokens
