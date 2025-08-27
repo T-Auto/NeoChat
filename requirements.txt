@@ -9,3 +9,4 @@ jsonpath-ng
 
 
 prompt-toolkit
+questionary

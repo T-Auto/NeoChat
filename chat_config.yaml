@@ -1,0 +1,25 @@
+# NeoChat 直接聊天模式的 LLM 配置
+
+providers:
+  - name: "DeepSeek (官方API)"
+    type: "openai_compatible"
+    api_key_env: "DEEPSEEK_API_KEY"
+    config:
+      base_url: "https://api.deepseek.com/v1"
+      api_path: "/chat/completions"
+    models:
+      - "deepseek-chat"
+      - "deepseek-coder"
+    default_parameters:
+      temperature: 0.7
+      max_tokens: 4096
+
+  - name: "Google Gemini (官方API)"
+    type: "gemini"
+    api_key_env: "GEMINI_API_KEY"
+    models:
+      - "gemini-1.5-flash-latest"
+      - "gemini-1.5-pro-latest"
+    default_parameters:
+      temperature: 0.8
+      max_output_tokens: 8192 # Gemini 使用 max_output_tokens
