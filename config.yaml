@@ -25,7 +25,7 @@ rag:
 # --------------------------------------------------------------------------
 llm:
   # 当前激活的 LLM 服务商。这里的名字必须与下面 providers 列表中的一个键匹配。
-  active_provider: "deepseek_official"
+  active_provider: "gemini_official"
 
   # API 请求的全局超时时间 (秒)
   timeout_seconds: 180
@@ -122,13 +122,12 @@ llm:
         temperature: 0.7
 
     # 8. gemini 官方 API
-      gemini_official:
+    gemini_official:
       type: "gemini" # <-- 使用新的客户端类型
       api_key: "${GEMINI_API_KEY}" # <-- 从 .env 读取 GEMINI_API_KEY
-      default_model: "gemini-1.5-pro-latest"
+      default_model: "gemini-2.5-flash"
       default_parameters:
         temperature: 0.7
-        # Gemini 使用 top_p 和 top_k, max_tokens 对应 max_output_tokens
         top_p: 1.0
         top_k: 32
         max_tokens: 8192 # 客户端内部会将其映射为 max_output_tokens
